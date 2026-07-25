@@ -4,6 +4,7 @@ import json
 import random
 import math
 import subprocess
+import ssl
 
 # ==========================================
 # 1. AUTO REQUIREMENTS INSTALLER SYSTEM
@@ -27,7 +28,7 @@ import pygame
 from tkinter import Tk, filedialog
 
 # ==========================================
-# 2. OTA UPDATE & AUTO-RELOAD SYSTEM
+# 2. OTA UPDATE & AUTO-RELOAD SYSTEM (FIXED)
 # ==========================================
 CURRENT_VERSION = "1.0.2"
 
@@ -39,16 +40,30 @@ def check_for_ota_update():
     print(f"[*] Current Version: v{CURRENT_VERSION}")
     try:
         import urllib.request
-        req = urllib.request.Request(UPDATE_URL, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=3) as response:
-            data = json.loads(response.read().decode())
-            latest_version = data.get("version", CURRENT_VERSION)
+
+        # Bypass SSL context issues on Windows/Python environments
+        ssl_context = ssl._create_unverified_context()
+        
+        # Proper Browser Headers to prevent GitHub blocking
+        req = urllib.request.Request(
+            UPDATE_URL, 
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        )
+        
+        with urllib.request.urlopen(req, context=ssl_context, timeout=5) as response:
+            raw_data = response.read().decode('utf-8').strip()
+            data = json.loads(raw_data)
+            
+            latest_version = str(data.get("version", CURRENT_VERSION))
             update_script_url = data.get("script_url", SCRIPT_DOWNLOAD_URL)
             
             if latest_version > CURRENT_VERSION:
+                print(f"[+] New update found! Online: v{latest_version} | Local: v{CURRENT_VERSION}")
                 return True, latest_version, update_script_url
+            else:
+                print("[*] Game is up to date.")
     except Exception as e:
-        print("[!] OTA Server offline or no connection.")
+        print(f"[!] OTA Connection Error: {e}")
     
     return False, CURRENT_VERSION, SCRIPT_DOWNLOAD_URL
 
@@ -59,15 +74,17 @@ def trigger_ota_update_and_restart():
     print("[*] Downloading update package and restarting...")
     
     updater_code = f"""
-import time, subprocess, sys, urllib.request
+import time, subprocess, sys, urllib.request, ssl
 
 time.sleep(1)
 print("[*] Fetching latest game version from GitHub...")
 
 try:
     url = "{update_url}"
-    req = urllib.request.Request(url, headers={{'User-Agent': 'Mozilla/5.0'}})
-    with urllib.request.urlopen(req) as response:
+    ssl_context = ssl._create_unverified_context()
+    req = urllib.request.Request(url, headers={{'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}})
+    
+    with urllib.request.urlopen(req, context=ssl_context) as response:
         new_code = response.read().decode('utf-8')
     
     # Overwrite current running script file
