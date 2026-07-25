@@ -30,7 +30,10 @@ from tkinter import Tk, filedialog
 # 2. OTA UPDATE & AUTO-RELOAD SYSTEM
 # ==========================================
 CURRENT_VERSION = "1.0.2"
-UPDATE_URL = "https://raw.githubusercontent.com/example/temple_runner/main/version.json" # Change to real JSON endpoint
+
+# Direct Raw Links from your GitHub Repository (Alviff/Temple_Runner)
+UPDATE_URL = "https://raw.githubusercontent.com/Alviff/Temple_Runner/main/Version"
+SCRIPT_DOWNLOAD_URL = "https://raw.githubusercontent.com/Alviff/Temple_Runner/main/Temple_Runner.py"
 
 def check_for_ota_update():
     print(f"[*] Current Version: v{CURRENT_VERSION}")
@@ -40,30 +43,45 @@ def check_for_ota_update():
         with urllib.request.urlopen(req, timeout=3) as response:
             data = json.loads(response.read().decode())
             latest_version = data.get("version", CURRENT_VERSION)
-            update_script_url = data.get("script_url", "")
+            update_script_url = data.get("script_url", SCRIPT_DOWNLOAD_URL)
             
             if latest_version > CURRENT_VERSION:
                 return True, latest_version, update_script_url
     except Exception as e:
         print("[!] OTA Server offline or no connection.")
     
-    return False, CURRENT_VERSION, ""
+    return False, CURRENT_VERSION, SCRIPT_DOWNLOAD_URL
 
 update_available, new_ver, update_url = check_for_ota_update()
 
 def trigger_ota_update_and_restart():
-    """Download update, close game, replace file & relaunch"""
+    """Download update from GitHub raw link, close game, replace file & relaunch"""
     print("[*] Downloading update package and restarting...")
-    # Background update logic simulation / External script handler
+    
     updater_code = f"""
-import time, subprocess, sys
+import time, subprocess, sys, urllib.request
+
 time.sleep(1)
-print("Updating game files...")
-# Here code fetches latest file and overwrites temple_runner_launcher.py
-subprocess.Popen([sys.executable, "{sys.argv[0]}"])
+print("[*] Fetching latest game version from GitHub...")
+
+try:
+    url = "{update_url}"
+    req = urllib.request.Request(url, headers={{'User-Agent': 'Mozilla/5.0'}})
+    with urllib.request.urlopen(req) as response:
+        new_code = response.read().decode('utf-8')
+    
+    # Overwrite current running script file
+    with open("{sys.argv[0]}", "w", encoding="utf-8") as f:
+        f.write(new_code)
+    
+    print("[+] Game updated successfully! Relaunching...")
+    subprocess.Popen([sys.executable, "{sys.argv[0]}"])
+except Exception as e:
+    print(f"[-] Update failed: {{e}}")
+
 sys.exit()
 """
-    with open("updater_temp.py", "w") as f:
+    with open("updater_temp.py", "w", encoding="utf-8") as f:
         f.write(updater_code)
     
     subprocess.Popen([sys.executable, "updater_temp.py"])
@@ -351,9 +369,9 @@ while running:
         screen.blit(title_txt, (WIDTH // 2 - title_txt.get_width() // 2, 60))
 
         lines = [
-            "Developer: Cyber Game Studio",
+            "Developer: Alviff",
             "Built with: Python & Pygame Engine",
-            "Auto OTA Updater & Requirement Handler Active"
+            "Auto OTA Updater Connected to GitHub"
         ]
         for idx, line in enumerate(lines):
             txt = font_medium.render(line, True, WHITE)
